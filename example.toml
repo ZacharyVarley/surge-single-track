@@ -1,0 +1,69 @@
+# One SURGE laser track on a plate of random grains.
+# Every key is explained in README.md ("Parameters"). Units are in the key names.
+# These values are the centre of the 1,152-run single-track dataset's process window.
+
+[domain]
+nx = 440                  # voxels along the scan direction (x)
+ny = 88                   # voxels across the track (y)
+nz = 48                   # voxels in depth (z, the build direction); the top surface is z = nz
+dx_um = 2.5               # voxel size
+
+[laser]
+power_W = 290.0           # nominal laser power
+absorptivity = 0.155      # absorbed power = absorptivity * power
+speed_m_s = 1.0           # scan speed
+track_mm = 1.0            # track length, centred in x, along y = ny/2, on the top surface
+spot_um = 50.0            # source width sx = sy (1/e radius of the Gaussian)
+depth_um = 25.0           # source depth width sz (1/e radius)
+preheat_K = 573.0         # starting plate temperature and ambient of the heat solution
+
+[noise]                   # laser fluctuations; all three sigmas = 0 switches them off
+psd = "lorentzian"        # white | lorentzian | pink | narrow_band (then set f0_Hz, df_Hz)
+sigma_P = 0.075           # RMS fractional fluctuation of the absorbed power
+sigma_W = 0.025           # RMS fractional fluctuation of the spot width (sx, sy)
+sigma_D = 0.03            # RMS fractional fluctuation of the depth width (sz)
+rho = 0.5                 # correlation between the width and depth fluctuations
+tau_s = 200e-6            # correlation time (lorentzian only)
+dt_s = 5e-6               # sample spacing of the fluctuation table
+seed = 21
+
+[substrate]
+grain_size_um = 25.0      # equivalent sphere diameter of the Voronoi grains
+seed = 1                  # grain centres and orientations
+
+[thermal]                 # Moser heat source (moving Gaussian, Green's-function solution)
+conductivity_W_mK = 11.2
+diffusivity_m2_s = 2.0959e-6
+heat_capacity_J_kgK = 650.0     # no effect on the Moser temperature (rho cp = k / alpha)
+
+[material]                # SURGE's GP700 example values (fitted to a different alloy)
+liquidus_K = 1573.0
+solidus_K = 1523.0
+solid_front_vel = [-1.0302e-7, 1.0533e-4, 2.2196e-3, 0.0]   # v(dT) polynomial, highest power first
+nucleation_density_m3 = 1.5e13
+critical_undercooling_K = 15.0
+undercooling_deviation_K = 2.0
+mean_nuclei_volume_m3 = 8.4375e-16
+nuclei_volume_deviation_m3 = 1.5625e-17
+
+[texture]
+c2 = 2.8                  # mobility = 1 + c2 cos(c3 theta), theta = gradient vs nearest <100>
+c3 = 2.5
+smooth_greedy_multiproposal = true
+smooth_orientation = "copy"   # copy | average
+nuclei_smooth = false
+
+[time]
+dt_s = 2.5e-6             # time step
+nrefine = 2               # boundary-smoothing passes after a site solidifies
+pause_below_K = 1300.0    # end the run once the scan is done and the peak T is below this
+extra_time_s = 5e-3       # cap on the cooling time after the scan
+
+[run]
+kmc_seed = 11             # nucleation and grain-growth randomness
+nspins = 1000000          # number of Potts spin values
+fast_forward_search_window_s = 1e-4
+snapshot_at = 0.5         # temperature snapshot this far through the scan (0 = none)
+
+[extra]
+commands = []             # raw SURGE commands added to the deck, e.g. ["misorientation_diffusion 2e5"]

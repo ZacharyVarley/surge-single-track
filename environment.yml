@@ -1,0 +1,22 @@
+# Everything needed to build and run the SURGE demo, from conda-forge, including the CUDA
+# toolkit, so the machine only needs an NVIDIA driver (>= 525; >= 570 for RTX 50xx / B200).
+#   conda env create -f environment.yml && conda activate surge
+# To use a CUDA toolkit already on the system instead, delete the three cuda lines; nvcc
+# then needs a gcc it supports (CUDA 12.4-12.9: gcc <= 13 or 14; CUDA 13: gcc <= 15).
+name: surge
+channels:
+  - conda-forge
+dependencies:
+  - cuda-version=12.9     # 12.9 supports Volta (V100) through Blackwell (B200, RTX 50xx)
+  - cuda-nvcc
+  - cuda-cudart-dev
+  - gcc=13                # host compiler for nvcc
+  - gxx=13
+  - cmake=3.30
+  - make
+  - openmpi
+  - zlib
+  - python>=3.11
+  - numpy
+  - scipy
+  - matplotlib

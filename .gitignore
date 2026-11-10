@@ -1,0 +1,4 @@
+spparks/
+runs/
+__pycache__/
+*.pyc
