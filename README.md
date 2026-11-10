@@ -42,7 +42,8 @@ region that melted.*
   brings its own CUDA toolkit and compilers, so you need no root access and no system CUDA.
 - git, internet access for the first build, and about 2 GB of disk: 1 GB for the environment,
   0.2 GB for the source and build, the rest for conda's package cache.
-- The example uses under 1 GB of GPU memory.
+- About 1 GB of GPU memory for the example. Measured peaks were 0.6–1.4 GB above the idle
+  level, and that measure includes other programs on the GPU.
 
 ## Quick start
 
@@ -127,8 +128,10 @@ These problems came up while setting SURGE up; `build.sh` and `env.sh` already h
 - **`fast_forward_search_window` must be well below the run length.** Its default, 0.1 s, is
   longer than a whole single-track run, so the example sets 1e-4 s.
 - **`laser_fluctuations` must come before `laser_path` in a deck.**
-- **The warning `pause keyword specified but repeats=1` is expected.** `pause_below` still ends
-  the run early once the track has cooled.
+- **Two messages in `surge.log` are expected.** `pause keyword specified but repeats=1` is
+  harmless, because `pause_below` still ends the run early once the track has cooled.
+  `texture_parameters: minimum mobility -1.04 < 0` says that with c2 = 2.8 badly aligned grains
+  get zero growth weight, which is the intended strong selection.
 
 ## Outputs
 
