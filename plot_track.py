@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot one SURGE track: the melt pool during the scan and the grain orientations after it.
+"""Plot a SURGE track: melt pool snapshot during the scan and grain orientations after it.
 
 usage: python plot_track.py <track.npz> <out.png>
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one SURGE laser track from a TOML config and save the result as one .npz file.
+"""Run a SURGE single-track simulation from a TOML config and save the result to track.npz.
 
 usage: python run_track.py <config.toml> <out dir> [--keep]
 

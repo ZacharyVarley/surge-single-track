@@ -1,6 +1,5 @@
-# One SURGE laser track on a plate of random grains.
-# Every key is explained in README.md ("Parameters"). Units are in the key names.
-# These values are the centre of the 1,152-run single-track dataset's process window.
+# SURGE single-track example config. Keys are documented in README.md (Parameters).
+# Values are the centre of the 1,152-run single-track dataset's process window.
 
 [domain]
 nx = 440                  # voxels along the scan direction (x)

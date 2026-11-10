@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run one track and plot it.
+# Run a track and plot it.
 # usage:  conda activate surge && bash run.sh [config.toml] [output dir]
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

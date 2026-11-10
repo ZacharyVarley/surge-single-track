@@ -1,24 +1,19 @@
-# SURGE demo: one laser track on a GPU
+# SURGE single-track example
 
-SURGE is a kinetic Monte Carlo model of melting and solidification under a moving laser, for
-laser additive manufacturing. It is the `additive/texture` application of
-[SPPARKS](https://spparks.github.io) (Sandia National Laboratories), with a GPU port
-`additive/texture/kk` built on Kokkos. Its inputs are the laser settings, the scan path, the
-starting grain structure and material constants. Its outputs are the melt pool and the grain
-structure (grain labels and crystal orientations) it leaves behind.
+Scripts to build SURGE on an NVIDIA GPU, simulate a single laser track and plot the melt pool
+and grain orientations.
 
-This folder holds only what you need to build SURGE, run one short track and plot it. The SURGE
-source is not copied here: `build.sh` fetches it from
-[github.com/trodger-snl/spparks](https://github.com/trodger-snl/spparks/tree/SURGE), branch
-`SURGE`, at the tested commit `96fb758`.
+SURGE is the `additive/texture` app of [SPPARKS](https://spparks.github.io), a kinetic Monte
+Carlo model of melting and solidification in laser additive manufacturing. `additive/texture/kk`
+is its Kokkos GPU version. `build.sh` downloads the source from
+[github.com/trodger-snl/spparks](https://github.com/trodger-snl/spparks/tree/SURGE) (branch
+`SURGE`, commit `96fb758`).
 
 ![Example track](figures/example.png)
 
-*The example track: 290 W at 1 m/s on a 573 K plate of 25 µm grains. Top two panels: the
-temperature halfway through the scan, with the liquid region (the melt pool) outlined. Lower
-panels: the grains after solidification, coloured by the crystal direction along the build
-direction z (IPF-Z key). The substrate is drawn darker, and the black line is the edge of the
-region that melted.*
+*290 W, 1 m/s, 573 K preheat, 25 µm substrate grains. Top: temperature at t = 0.5 ms with the
+liquid outlined. Bottom: grains after solidification, IPF-Z colours, substrate darkened, fusion
+boundary in black.*
 
 ## Files
 
@@ -34,20 +29,14 @@ region that melted.*
 
 ## Requirements
 
-- Linux x86-64 with an NVIDIA GPU and its driver (`nvidia-smi` must work). The driver must
-  support CUDA 12: version 525 or newer, or 570 or newer for Blackwell GPUs (RTX 50xx, B200).
-  CUDA 12.9 and Kokkos support Volta (V100) and every newer GPU, which covers the usual cloud
-  GPUs (T4, A10G, L4, L40S, A100, H100). This demo was tested on an RTX 5070.
-- [conda](https://github.com/conda-forge/miniforge) (Miniforge or Miniconda). The environment
-  brings its own CUDA toolkit and compilers, so you need no root access and no system CUDA.
-- git, internet access for the first build, and about 2 GB of disk: 1 GB for the environment,
-  0.2 GB for the source and build, the rest for conda's package cache.
-- About 1 GB of GPU memory for the example. Measured peaks were 0.6–1.4 GB above the idle
-  level, and that measure includes other programs on the GPU.
+- Linux x86-64, NVIDIA GPU, driver ≥ 525 (≥ 570 for RTX 50xx / B200). Any GPU from Volta (V100)
+  on should work; tested only on an RTX 5070.
+- [conda](https://github.com/conda-forge/miniforge). The environment includes the CUDA toolkit
+  and compilers; no root or system CUDA needed.
+- git, internet for the first build, ~2 GB disk.
+- ~1 GB GPU memory for the example.
 
 ## Quick start
-
-Clone or copy this folder onto the GPU machine, then run these four steps from inside it:
 
 ```bash
 conda env create -f environment.yml
@@ -65,8 +54,7 @@ bash build.sh
 bash run.sh
 ```
 
-`build.sh` takes about 4 minutes on 16 cores. `run.sh` writes `runs/example/`, and on an RTX 5070
-it prints:
+The build takes ~4 min on 16 cores. `run.sh` writes `runs/example/`. Output on an RTX 5070:
 
 ```
 440 x 88 x 48 voxels, 3549 substrate grains; deck ~/surge_demo/runs/example/in.track (1.1 s)
@@ -76,70 +64,58 @@ wrote ~/surge_demo/runs/example/track.npz (19 s in total)
 wrote ~/surge_demo/runs/example/track.png
 ```
 
-Builds with CUDA 12.9 + gcc 13 and with CUDA 13.1 + gcc 15 gave exactly these numbers.
+CUDA 12.9 + gcc 13 and CUDA 13.1 + gcc 15 builds gave identical numbers.
 
-On a headless server, copy the figure back with `scp`, for example
-`scp host:surge_demo/runs/example/track.png .`
+Other settings: copy `example.toml`, edit, and run `bash run.sh my_track.toml` (output in
+`runs/my_track/`). Select a GPU with `CUDA_VISIBLE_DEVICES`.
 
-To run your own settings, copy `example.toml`, edit it and run `bash run.sh my_track.toml`, which
-writes `runs/my_track/`. For a parameter sweep, write one config per point. Run one track per GPU
-at a time, and pick the GPU with `CUDA_VISIBLE_DEVICES=1 bash run.sh ...`.
-
-SURGE is repeatable: the same config and seeds give the same microstructure, bit for bit, on
-the same GPU type and build. Replicate runs therefore need different `kmc_seed`, `substrate.seed`
-and `noise.seed` values.
+Runs are deterministic for a given config, seeds, GPU type and build. Replicates need different
+`kmc_seed`, `substrate.seed` and `noise.seed`.
 
 ## Build options and known fixes
 
-`build.sh` reads these optional environment variables:
+Optional environment variables for `build.sh`:
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `KOKKOS_ARCH` | from `nvidia-smi` | Kokkos GPU token: `VOLTA70`, `TURING75` (T4), `AMPERE80` (A100), `AMPERE86` (A10G, RTX 30xx), `ADA89` (L4, L40S, RTX 40xx), `HOPPER90` (H100), `BLACKWELL100` (B200), `BLACKWELL120` (RTX 50xx). Set it to build on a machine without the target GPU. |
-| `PREC` | `mixed` | `mixed` evaluates the hot kernels in single precision. On an RTX 5070 it is about 2× faster than `double` and gives the same melt volume and grain counts. On data-centre GPUs with fast FP64 (A100, H100) the gap should be smaller (not measured). `env.sh` picks the binary from the same variable. |
+| `PREC` | `mixed` | `mixed` (single-precision hot kernels) or `double`. On an RTX 5070 `mixed` is ~2× faster with the same melt volume and grain counts; not measured on FP64-heavy GPUs (A100, H100). `env.sh` reads the same variable. |
 | `CUDA_HOME` | the conda env's | the CUDA toolkit to build with |
 | `SURGE_COMMIT` | `96fb7587…` | the SURGE commit to build |
 | `SURGE_DIR` | `./spparks` | where the source checkout goes |
 | `JOBS` | all cores | parallel compile jobs |
 
-These problems came up while setting SURGE up; `build.sh` and `env.sh` already handle them:
+Known problems (handled by `build.sh` and `env.sh`):
 
-- **The host compiler must suit nvcc.** nvcc refuses a newer gcc than it supports: CUDA 12.4
-  to 12.7 takes gcc 13 at most, CUDA 12.8 and 12.9 take gcc 14, and CUDA 13 takes gcc 15.
-  `environment.yml` pairs CUDA 12.9 with gcc 13, and `build.sh` stops with a message naming the
-  gcc to install if the pair does not match. To use a system CUDA instead, delete the three
-  `cuda-*` lines from `environment.yml` and set `CUDA_HOME`.
-- **conda's nvcc and Kokkos' `nvcc_wrapper` both pass `-ccbin`.** nvcc then fails with a
-  redefinition of `compiler-bindir`, so `build.sh` unsets `NVCC_PREPEND_FLAGS` before building.
-- **The CUDA backend needs an explicit Kokkos architecture.** `build.sh` reads the GPU's compute
-  capability from `nvidia-smi`.
-- **Avoid Ubuntu's `nvidia-cuda-toolkit` apt package.** It installs CUDA 12.0 as
-  `/usr/bin/nvcc`, which is too old for Kokkos 5 and for recent GPUs. `build.sh` uses the conda
-  env's nvcc first.
-- **WSL only: SURGE segfaults at CUDA start-up.** The same apt package pulls in
-  `libnvidia-compute-*`, which puts Linux-driver copies of `libcuda` and
-  `libnvidia-ptxjitcompiler` in `/usr/lib/x86_64-linux-gnu`. Under WSL the driver lives in
-  `/usr/lib/wsl`, and CUDA crashes when it loads the stray `libnvidia-ptxjitcompiler`. `env.sh`
-  puts the WSL driver's directories first on `LD_LIBRARY_PATH`. This does not apply on a native
-  Linux machine. Also keep the folder in the Linux file system (`~/`), not under `/mnt/c`, where
-  file access is slow.
-- **The GPU app is stricter than the CPU app.** It needs `lattice sc/26n 1.0` and rejects the
-  CPU-only commands `nucleation_mode`, `void_*` and `single_voxel_cleanup`.
-- **`fast_forward_search_window` must be well below the run length.** Its default, 0.1 s, is
-  longer than a whole single-track run, so the example sets 1e-4 s.
-- **`laser_fluctuations` must come before `laser_path` in a deck.**
-- **Two messages in `surge.log` are expected.** `pause keyword specified but repeats=1` is
-  harmless, because `pause_below` still ends the run early once the track has cooled.
-  `texture_parameters: minimum mobility -1.04 < 0` says that with c2 = 2.8 badly aligned grains
-  get zero growth weight, which is the intended strong selection.
+- **gcc / nvcc versions.** nvcc rejects gcc newer than it supports: CUDA 12.4–12.7 → gcc ≤ 13,
+  12.8–12.9 → gcc ≤ 14, 13.x → gcc ≤ 15. `environment.yml` uses CUDA 12.9 + gcc 13; `build.sh`
+  checks the pair. For a system CUDA, delete the `cuda-*` lines in `environment.yml` and set
+  `CUDA_HOME`.
+- **Duplicate `-ccbin`.** conda's nvcc sets `NVCC_PREPEND_FLAGS=-ccbin=...`, which conflicts with
+  Kokkos' `nvcc_wrapper`. `build.sh` unsets it.
+- **Kokkos arch.** The CUDA backend needs it set explicitly; `build.sh` reads it from `nvidia-smi`.
+- **Ubuntu's `nvidia-cuda-toolkit` package.** Installs CUDA 12.0 as `/usr/bin/nvcc`, too old for
+  Kokkos 5. `build.sh` uses the conda nvcc first.
+- **WSL segfault at CUDA init.** The same apt package pulls in `libnvidia-compute-*`, which puts
+  Linux-driver `libcuda` / `libnvidia-ptxjitcompiler` in `/usr/lib/x86_64-linux-gnu`; under WSL
+  these crash CUDA. `env.sh` puts the WSL driver directories first on `LD_LIBRARY_PATH`. Not an
+  issue on native Linux. Under WSL, work in `~/`, not `/mnt/c`.
+- **GPU app restrictions.** Requires `lattice sc/26n 1.0`; rejects the CPU-only commands
+  `nucleation_mode`, `void_*`, `single_voxel_cleanup`.
+- **`fast_forward_search_window`.** The 0.1 s default exceeds a single-track run; the example
+  uses 1e-4 s.
+- **Command order.** `laser_fluctuations` must precede `laser_path`.
+- **Expected log messages.** `pause keyword specified but repeats=1` (harmless; `pause_below`
+  still stops the run) and `texture_parameters: minimum mobility -1.04 < 0` (with c2 = 2.8,
+  poorly aligned grains get zero growth weight).
 
 ## Outputs
 
-`runs/<config name>/` holds:
+Files in `runs/<config name>/`:
 
 | File | Content |
 |---|---|
-| `in.track` | the SURGE input deck written from the config. Read it to see the raw SURGE commands. |
+| `in.track` | SURGE input deck generated from the config |
 | `surge.log` | SURGE's screen output |
 | `summary.json` | fusion-zone depth and width (median over the middle half of the track), number of grains in the fusion zone and how many are new (nucleated or re-oriented), leftover liquid, run time |
 | `track.npz` | the arrays below |
@@ -165,18 +141,17 @@ d = np.load("runs/example/track.npz")
 quat = d["orientations"][d["grain_id"]]     # (nx, ny, nz, 4) orientation of every voxel
 ```
 
-Axes: x is the scan direction, y is across the track and z points up (the build direction), so
-the top surface is `k = nz - 1`. Voxel (i, j, k) sits at (i, j, k) × dx. The laser runs along
-y = ny·dx/2 on the top surface and is centred in x. A melted voxel keeps its substrate grain's
-label when it grew from that grain with the same orientation. Every other grain gets a new
-label after the substrate labels.
+Axes: x = scan direction, y = transverse, z = build direction; top surface at `k = nz - 1`.
+Voxel (i, j, k) is at (i, j, k) × dx. The track runs along y = ny·dx/2, centred in x. Melted
+voxels that grew epitaxially keep their substrate grain label; other grains get new labels
+numbered after the substrate grains.
 
 ## Parameters
 
-Every key of `example.toml`. "Range" is a sensible span, not a hard limit: for the five process
-settings it is the window we sampled in a 1,152-run single-track dataset (power 200–380 W, speed
-0.5–1.5 m/s, preheat 373–773 K, spot 35–65 µm, laser noise 0 to the example's values × 2). SURGE
-checks its own inputs and stops with a message if one is invalid.
+All keys in `example.toml`. Ranges are typical values, not hard limits. For the process
+parameters they are the ranges of our 1,152-run single-track dataset (power 200–380 W, speed
+0.5–1.5 m/s, preheat 373–773 K, spot 35–65 µm, noise 0–2× the example values). SURGE validates
+its inputs and exits with an error on invalid values.
 
 ### `[domain]`: the voxel box
 
@@ -201,9 +176,9 @@ checks its own inputs and stops with a message if one is invalid.
 
 ### `[noise]`: laser fluctuations
 
-Each emitted moment of the laser gets its power multiplied by (1 + dP), its spot width by
-(1 + dW) and its depth by (1 + dD), drawn from a random process. The cooling tail remembers the
-fluctuations that heated it, so the pool size wanders along the track.
+Power, spot width and depth width are scaled by (1 + dP), (1 + dW), (1 + dD), where dP, dW, dD
+are stationary random processes sampled at emission time. This makes the pool size vary along
+the track.
 
 | Key | Default | Range | Units | What it changes |
 |---|---|---|---|---|
@@ -220,7 +195,7 @@ fluctuations that heated it, so the pool size wanders along the track.
 
 | Key | Default | Range | Units | What it changes |
 |---|---|---|---|---|
-| `grain_size_um` | 25 | 10–100 | µm | equivalent sphere diameter of the Voronoi grains, which have uniformly random orientations. The melt grows from these grains, so they set the template for the track. |
+| `grain_size_um` | 25 | 10–100 | µm | equivalent sphere diameter of the Voronoi substrate grains (uniformly random orientations). The track grows epitaxially from them. |
 | `seed` | 1 | any integer | – | grain centres and orientations |
 
 ### `[thermal]`: heat-conduction constants of the Moser source
@@ -233,8 +208,8 @@ fluctuations that heated it, so the pool size wanders along the track.
 
 ### `[material]`: solidification and nucleation
 
-These are SURGE's GP700 example values, fitted to a different alloy. The microstructure is
-sensitive to them, so treat them as uncertain or calibrate them.
+Values from SURGE's GP700 example (fitted to a different alloy). The microstructure is
+sensitive to them; they are not calibrated.
 
 | Key | Default | Range | Units | What it changes |
 |---|---|---|---|---|
@@ -283,10 +258,9 @@ sensitive to them, so treat them as uncertain or calibrate them.
 
 ## Other SURGE features
 
-The config covers one straight track with the Moser heat source. The SURGE checkout has more;
-its manual pages are in `spparks/doc/*.txt` after `build.sh` has run. Commands that only set a
-value can go in `[extra] commands`. Changing the heat source or the scan means editing `deck()`
-in `run_track.py`.
+The config only covers a straight single track with the Moser source. Manual pages are in
+`spparks/doc/*.txt` after building. Parameter-setting commands can go in `[extra] commands`;
+changing the heat source or scan path requires editing `deck()` in `run_track.py`.
 
 | Feature | Command | Manual page |
 |---|---|---|
@@ -301,13 +275,10 @@ in `run_track.py`.
 
 ## Caveats
 
-- The material and grain-competition values come from SURGE's GP700 example, fitted to a
-  different alloy. They are a plausible start, not a calibration.
-- The Moser solution is linear heat conduction in a half-space, with no latent heat and no
-  evaporation, so the peak temperature is not capped at boiling (about 3300 K in the example).
-  The pool shape is what matters.
+- Material and texture parameters are from SURGE's GP700 example and are not calibrated.
+- The Moser solution is linear conduction in a half-space with no latent heat or evaporation, so
+  peak temperatures are unphysically high (~3300 K in the example).
 
 ## Licence
 
-SURGE and SPPARKS are distributed under the GNU General Public License, version 2 (see
-`spparks/LICENSE` after `build.sh`). This folder contains no SURGE source code.
+SURGE/SPPARKS is GPL-2 (`spparks/LICENSE` after building). No SURGE source is included here.
